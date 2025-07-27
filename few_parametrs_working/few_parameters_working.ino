@@ -3,92 +3,103 @@
 #define CAN_RX GPIO_NUM_12
 #define CAN_TX GPIO_NUM_13
 
-#define ECU_REQUEST_ID 0x6F1
-#define ECU_RESPONSE_ID 0x612
-
 void setup() {
-  Serial.begin(115200);
-  delay(1000);
+    Serial.begin(115200);
+    delay(1000);
 
-  twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX, CAN_RX, TWAI_MODE_NORMAL);
-  twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
-  twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX, CAN_RX, TWAI_MODE_NORMAL);
+    twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
+    twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
-  if (twai_driver_install(&g_config, &t_config, &f_config) != ESP_OK) {
-    Serial.println("CAN init error");
-    return;
-  }
+    if (twai_driver_install(&g_config, &t_config, &f_config) != ESP_OK) {
+        Serial.println("CAN init error");
+        return;
+    }
 
-  if (twai_start() != ESP_OK) {
-    Serial.println("CAN start error");
-    return;
-  }
+    if (twai_start() != ESP_OK) {
+        Serial.println("CAN start error");
+        return;
+    }
 
-  Serial.println("System ready - Brute-force mode 0x22 (BMW EDC16CP35)");
-
-  sendDiagnosticSessionRequest();
-  delay(500);
+    Serial.println("System ready - Mode 01 OBD-II test");
 }
 
-void sendDiagnosticSessionRequest() {
-  twai_message_t diag;
-  diag.identifier = ECU_REQUEST_ID;
-  diag.extd = 0;
-  diag.rtr = 0;
-  diag.data_length_code = 8;
-  diag.data[0] = 0x10;
-  diag.data[1] = 0x03;
-  memset(&diag.data[2], 0x00, 6);
+const uint8_t STANDARD_PIDS[] = {
+    0x05, // Coolant Temp
+    0x0C, // RPM
+    0x0F, // Intake Air Temp
+    0x10, // MAF
+    0x11  // Throttle
+};
 
-  if (twai_transmit(&diag, pdMS_TO_TICKS(100)) == ESP_OK) {
-    Serial.println("Sent 0x10 0x03 - diagnostic session start");
-  } else {
-    Serial.println("Failed to send diagnostic session request");
-  }
+void sendOBD2Mode01Request(uint8_t pid) {
+    twai_message_t request;
+    request.identifier = 0x7DF;
+    request.extd = 0;
+    request.rtr = 0;
+    request.data_length_code = 8;
+
+    request.data[0] = 0x02;     // liczba danych
+    request.data[1] = 0x01;     // Mode 01
+    request.data[2] = pid;      // PID
+    memset(&request.data[3], 0x55, 5); // padding
+
+    if (twai_transmit(&request, pdMS_TO_TICKS(100)) != ESP_OK) {
+        Serial.println("Send error");
+    } else {
+        Serial.printf("Sent PID 0x%02X\n", pid);
+    }
 }
 
-void sendMode22Request(uint16_t pid) {
-  twai_message_t msg;
-  msg.identifier = ECU_REQUEST_ID;
-  msg.extd = 0;
-  msg.rtr = 0;
-  msg.data_length_code = 8;
-  msg.data[0] = 0x03;        // 3 bajty danych
-  msg.data[1] = 0x22;        // Service 0x22 - ReadDataByIdentifier
-  msg.data[2] = (pid >> 8);  // PID high byte
-  msg.data[3] = (pid & 0xFF);// PID low byte
-  msg.data[4] = 0x00;
-  msg.data[5] = 0x00;
-  msg.data[6] = 0x00;
-  msg.data[7] = 0x00;
+void processOBD2Response(twai_message_t &msg) {
+    if (msg.identifier < 0x7E8 || msg.identifier > 0x7EF) return;
+    if (msg.data[0] < 3 || msg.data[1] != 0x41) return;
 
-  if (twai_transmit(&msg, pdMS_TO_TICKS(100)) != ESP_OK) {
-    Serial.printf("Send error for PID 0x%04X\n", pid);
-  }
+    uint8_t pid = msg.data[2];
+    float value = 0;
+    String paramName;
+
+    switch (pid) {
+        case 0x05: // Coolant Temp
+            value = msg.data[3] - 40;
+            paramName = "Coolant Temp";
+            break;
+        case 0x0C: // RPM
+            value = ((msg.data[3] << 8) | msg.data[4]) / 4.0f;
+            paramName = "RPM";
+            break;
+        case 0x0F: // Intake Air Temp
+            value = msg.data[3] - 40;
+            paramName = "Intake Temp";
+            break;
+        case 0x10: // MAF
+            value = ((msg.data[3] << 8) | msg.data[4]) * 0.01f;
+            paramName = "MAF (g/s)";
+            break;
+        case 0x11: // Throttle Position
+            value = msg.data[3] * 100.0f / 255.0f;
+            paramName = "Throttle (%)";
+            break;
+        default:
+            Serial.printf("Unknown PID: 0x%02X\n", pid);
+            return;
+    }
+
+    Serial.printf("%s: %.1f\n", paramName.c_str(), value);
 }
 
 void loop() {
-  static uint16_t pid = 0x2000;
-  static unsigned long lastSend = 0;
+    static unsigned long lastReq = 0;
+    static uint8_t pidIndex = 0;
 
-  // Wysyłaj co 150ms
-  if (millis() - lastSend > 150) {
-    lastSend = millis();
-    sendMode22Request(pid);
-    pid++;
-    if (pid > 0x20FF) {
-      Serial.println("Brute-force complete");
-      while (1) delay(1000);
+    if (millis() - lastReq > 1000) {
+        lastReq = millis();
+        sendOBD2Mode01Request(STANDARD_PIDS[pidIndex]);
+        pidIndex = (pidIndex + 1) % (sizeof(STANDARD_PIDS) / sizeof(STANDARD_PIDS[0]));
     }
-  }
 
-  // Odbiór odpowiedzi
-  twai_message_t response;
-  if (twai_receive(&response, pdMS_TO_TICKS(50)) == ESP_OK) {
-    Serial.printf("Response for PID 0x%02X%02X: ", response.data[2], response.data[3]);
-    for (int i = 0; i < response.data_length_code; i++) {
-      Serial.printf("%02X ", response.data[i]);
+    twai_message_t response;
+    if (twai_receive(&response, pdMS_TO_TICKS(100)) == ESP_OK) {
+        processOBD2Response(response);
     }
-    Serial.println();
-  }
 }
