@@ -23,16 +23,17 @@ Projekt systemu do odczytu parametrów w czasie rzeczywistym z magistrali CAN w 
 ## 📊 Parametry live — status odczytu
 
 ### ✅ Udało się odczytać:
-- [x] Temperatura cieczy chłodzącej
-- [x] Temperatura w przepływomierzu
-- [x] Obroty silnika (RPM)
-- [x] Przepływ powietrza (MAF w g/s lub mg/str)
+
+- ✅ Temperatura cieczy chłodzącej
+- ✅ Temperatura w przepływomierzu
+- ✅ Obroty silnika (RPM)
+- ✅ Przepływ powietrza (MAF w g/s lub mg/str)
+- ✅ Ciśnienie doładowania (boost)
 
 
 ### ⏳ Nadal w trakcie reverse engineeringu:
 - [ ] Ciśnienie paliwa
 - [ ] Temperatura paliwa
-- [ ] Ciśnienie doładowania (boost)
 - [ ] Temperatura powietrza doładowanego (intercooler)
 - [ ] Temperatura skrzyni biegów
 - [ ] AFR (lambda)
