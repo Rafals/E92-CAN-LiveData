@@ -26,10 +26,10 @@ void setup() {
 
 const uint8_t STANDARD_PIDS[] = {
     0x05, // Coolant Temp
+    0x0B, // Boost Pressure (MAP)
     0x0C, // RPM
     0x0F, // Intake Air Temp
-    0x10, // MAF
-    0x11  // Throttle
+    0x10 // MAF
 };
 
 void sendOBD2Mode01Request(uint8_t pid) {
@@ -58,34 +58,40 @@ void processOBD2Response(twai_message_t &msg) {
     uint8_t pid = msg.data[2];
     float value = 0;
     String paramName;
+    String unit;
 
     switch (pid) {
         case 0x05: // Coolant Temp
             value = msg.data[3] - 40;
             paramName = "Coolant Temp";
+            unit = "°C";
+            break;
+        case 0x0B: // Boost Pressure (MAP)
+            value = msg.data[3];
+            paramName = "Boost Pressure";
+            unit = "kPa";
             break;
         case 0x0C: // RPM
             value = ((msg.data[3] << 8) | msg.data[4]) / 4.0f;
             paramName = "RPM";
+            unit = "";
             break;
         case 0x0F: // Intake Air Temp
             value = msg.data[3] - 40;
             paramName = "Intake Temp";
+            unit = "°C";
             break;
         case 0x10: // MAF
             value = ((msg.data[3] << 8) | msg.data[4]) * 0.01f;
-            paramName = "MAF (g/s)";
-            break;
-        case 0x11: // Throttle Position
-            value = msg.data[3] * 100.0f / 255.0f;
-            paramName = "Throttle (%)";
+            paramName = "MAF";
+            unit = "g/s";
             break;
         default:
             Serial.printf("Unknown PID: 0x%02X\n", pid);
             return;
     }
 
-    Serial.printf("%s: %.1f\n", paramName.c_str(), value);
+    Serial.printf("%s: %.1f %s\n", paramName.c_str(), value, unit.c_str());
 }
 
 void loop() {
