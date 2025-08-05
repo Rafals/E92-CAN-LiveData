@@ -1,0 +1,29 @@
+name      : STATUS_LUFTEMPERATUR
+  comment : Messwert selectiv lesen
+            KWP2000: $2C DefineDataByLocalIdentifier
+            
+
+result    : JOB_STATUS
+  type    : string
+  comment : OKAY, wenn fehlerfrei
+            table JobResult STATUS_TEXT
+
+result    : ID_SG_ADR
+  type    : long
+  comment : Steuergeraeteadresse
+
+result    : _TEL_AUFTRAG
+  type    : data
+  comment : Hex-Auftrag an SG
+
+result    : _TEL_ANTWORT
+  type    : data
+  comment : Hex-Antwort von SG
+
+result    : STAT_LUFTEMPERATUR_WERT
+  type    : real
+  comment : Ergebnis
+
+result    : STAT_LUFTEMPERATUR_EINH
+  type    : string
+  comment : Einheit

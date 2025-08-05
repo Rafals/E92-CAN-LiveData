@@ -1,0 +1,21 @@
+apiJob("D62VM02A M57TÜS 11-03","status_luftemperatur","","")
+
+Satz : 0
+  OBJECT                          = d62vm02a m57tÜs 11-03
+  SAETZE                          = 1
+  JOBNAME                         = status_luftemperatur
+  VARIANTE                        = D62VM02A M57TÜS 11-03
+  JOBSTATUS                       = 
+  UBATTCURRENT                    = -1
+  UBATTHISTORY                    = -1
+  IGNITIONCURRENT                 = -1
+  IGNITIONHISTORY                 = -1
+Satz : 1
+  JOB_STATUS                      = OKAY
+  ID_SG_ADR                       = 18          00 00 00 12  ....                  
+  _TEL_AUFTRAG                    = 7 Bytes
+    0000 : 84 12 F1 2C 10 14 05                               ?.n,...
+  _TEL_ANTWORT                    = 6 Bytes
+    0000 : 82 F1 12 6C 10 01                                  ?n.l..
+  STAT_LUFTEMPERATUR_WERT         = -5.013844E+001
+  STAT_LUFTEMPERATUR_EINH         = deg C
